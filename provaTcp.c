@@ -69,7 +69,6 @@ unsigned int hook_func_in(unsigned int hooknum, struct sk_buff *skb,
    char dest_ip[16];
    snprintf(dest_ip, 16, "%pI4", &ip_header->daddr);*/
  
-   
  
    unsigned int src_port = 0;
  
