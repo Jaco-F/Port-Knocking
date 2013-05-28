@@ -105,7 +105,7 @@ unsigned int hook_func_in(unsigned int hooknum, struct sk_buff *skb,
    
    printk(KERN_INFO "end in provatcp: %u", cb.end);
    
-   return 0;
+   return NF_ACCEPT;
 
  }
  
