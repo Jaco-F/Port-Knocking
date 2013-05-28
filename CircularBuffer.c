@@ -46,6 +46,7 @@ void cbWrite(CircularBuffer *cb, ElemType *elem) {
     //printk(KERN_INFO "struct IN packet info: src ip: %u, src port: %u; dest ip: %u, dest port: %u\n", elem->src_ip, elem->src_port, elem->dest_ip, elem->dest_port);
     int i=0;
     int j=0;
+    int trovato=0;
     printk(KERN_INFO "struct IN packet info: src ip: %u, dest port: %u\n", elem->src_ip, elem->dest_port);
     printk(KERN_INFO "end : %d" ,cb->end);
     if(cb->end == 0) {
@@ -64,7 +65,8 @@ void cbWrite(CircularBuffer *cb, ElemType *elem) {
 	if(elem->src_ip == cb->elems[i].src_ip) {			//Controlla se ha gia ricevuto un pacchetto con lo stesso IP
 	  printk(KERN_INFO "gia' ricevuto da ip uguale");
 	  for(j=0;j < 8;j++) {						//Scorre il vettore di PortSequence
-	    if((cb->elems[i].dest_port == PortSequence[j])&&(PortSequence[j+1] == elem->dest_port)) {//Controlla a che porta è arrivato in precedenza e se la porta corrisponde a quella che mi aspetto sostituisco
+	    if((cb->elems[i].dest_port == PortSequence[j])&&(PortSequence[j+1] == elem->dest_port)&&(trovato==0)) { //Controlla a che porta è arrivato in precedenza e se la porta corrisponde a quella che mi aspetto sostituisco
+	      trovato = 1;
 	      printk(KERN_INFO "vecchia destport %u" , cb->elems[i].dest_port);
 	      cb->elems[i] = *elem;
 	      printk(KERN_INFO "avanziamo di porta!!");
@@ -75,7 +77,7 @@ void cbWrite(CircularBuffer *cb, ElemType *elem) {
 	      }
 	    }
 	    else { 
-	      if((cb->elems[i].dest_port == PortSequence[j])&&(PortSequence[j+1] != elem->dest_port)) {						//Se la porta non corrisponde a nessuna di quelle del vettore
+	      if((cb->elems[i].dest_port == PortSequence[j])&&(PortSequence[j+1] != elem->dest_port)&&(trovato==0)) {						//Se la porta non corrisponde a nessuna di quelle del vettore
 		if (elem->dest_port == PortSequence[0])		//Se è la prima allora sovrascrivo altrimenti cancello
 		  cb->elems[i] = *elem;			
 		else {
