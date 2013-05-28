@@ -12,7 +12,7 @@ MODULE_AUTHOR("4Mosfet");
 
 
 /* Circular buffer object */
-static int PortSequence[8];
+
  
 void cbInit(CircularBuffer *cb, int size) {
     cb->size  = size + 1; /* include empty elem */
@@ -43,7 +43,6 @@ int cbIsEmpty(CircularBuffer *cb) {
 /* Write an element, overwriting oldest element if buffer is full. App can
    choose to avoid the overwrite by checking cbIsFull(). */
 void cbWrite(CircularBuffer *cb, ElemType *elem) {
-    //printk(KERN_INFO "struct IN packet info: src ip: %u, src port: %u; dest ip: %u, dest port: %u\n", elem->src_ip, elem->src_port, elem->dest_ip, elem->dest_port);
     int i=0;
     int j=0;
     int trovato=0;
@@ -55,7 +54,6 @@ void cbWrite(CircularBuffer *cb, ElemType *elem) {
 	printk(KERN_INFO "primo inserito");
 	cb->elems[cb->end] = *elem;				//Aggiungo un elemento in coda al vettore
 	cb->end = (cb->end + 1) % cb->size;
-	printk(KERN_INFO "end : %d" ,cb->end);
 	if (cb->end == cb->start)
 	  cb->start = (cb->start + 1) % cb->size;
       }	 
@@ -65,12 +63,12 @@ void cbWrite(CircularBuffer *cb, ElemType *elem) {
 	if(elem->src_ip == cb->elems[i].src_ip) {			//Controlla se ha gia ricevuto un pacchetto con lo stesso IP
 	  printk(KERN_INFO "gia' ricevuto da ip uguale");
 	  for(j=0;j < 8;j++) {						//Scorre il vettore di PortSequence
-	    if((cb->elems[i].dest_port == PortSequence[j])&&(PortSequence[j+1] == elem->dest_port)&&(trovato==0)) { //Controlla a che porta è arrivato in precedenza e se la porta corrisponde a quella che mi aspetto sostituisco
+	    if((cb->elems[i].dest_port == PortSequence[j])&&(PortSequence[j+1] == elem->dest_port)&&(trovato==0)) {
+	      printk(KERN_INFO "J:%d", j);//Controlla a che porta è arrivato in precedenza e se la porta corrisponde a quella che mi aspetto sostituisco
 	      trovato = 1;
 	      printk(KERN_INFO "vecchia destport %u" , cb->elems[i].dest_port);
 	      cb->elems[i] = *elem;
 	      printk(KERN_INFO "avanziamo di porta!!");
-	      printk(KERN_INFO "end : %d" ,cb->end);
 	      if(j+1 == 7) {
 		printk(KERN_INFO "RICONOSCIUTA");
 		delete(i,cb);
@@ -78,6 +76,8 @@ void cbWrite(CircularBuffer *cb, ElemType *elem) {
 	    }
 	    else { 
 	      if((cb->elems[i].dest_port == PortSequence[j])&&(PortSequence[j+1] != elem->dest_port)&&(trovato==0)) {						//Se la porta non corrisponde a nessuna di quelle del vettore
+		printk(KERN_INFO "qui non deve entrare");
+		trovato=1;
 		if (elem->dest_port == PortSequence[0])		//Se è la prima allora sovrascrivo altrimenti cancello
 		  cb->elems[i] = *elem;			
 		else {
@@ -85,18 +85,18 @@ void cbWrite(CircularBuffer *cb, ElemType *elem) {
 		  delete(i,cb);
 		}
 	      }
-	    }
-	    printk(KERN_INFO "FUORI!!!");
-	    break;
+	    }	    
 	  }
+	   printk(KERN_INFO "FUORI!!!");
 	}
-	else {							//Se non ho ricevuto un pacchetto con lo stesso IP
+	else {
+	  if (trovato=0){//Se non ho ricevuto un pacchetto con lo stesso IP
 	  cb->elems[cb->end] = *elem;				//Aggiungo un elemento in coda al vettore
 	  cb->end = (cb->end + 1) % cb->size;
 	  if (cb->end == cb->start)
-	    cb->start = (cb->start + 1) % cb->size; /* full, overwrite */
+	    cb->start = (cb->start + 1) % cb->size; }/* full, overwrite */
 	}
-      }
+      } 
     }
 }
  
