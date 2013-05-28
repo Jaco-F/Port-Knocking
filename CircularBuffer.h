@@ -11,6 +11,14 @@ typedef struct {
     ElemType   *elems;  /* vector of elements                   */
 } CircularBuffer;
 
+static CircularBuffer cb;
+
+static CircularBuffer *bufferPointer;
+
+static ElemType e;
+
+static int PortSequence[8];
+
 void cbInit(CircularBuffer *cb, int size);
 void cbFree(CircularBuffer *cb);
 int cbIsFull(CircularBuffer *cb);

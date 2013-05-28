@@ -34,12 +34,6 @@ MODULE_AUTHOR("4Mosfet");
 //the structure used to register the function
  
 static struct nf_hook_ops nfho;
-
-static CircularBuffer cb;
-
-static CircularBuffer *bufferPointer=NULL;
-
-static ElemType e;
  
 //the hook function itself: registered for filtering incoming packets
  
@@ -54,7 +48,7 @@ unsigned int hook_func_in(unsigned int hooknum, struct sk_buff *skb,
    struct iphdr *ip_header = (struct iphdr *)skb_network_header(skb);
  
    struct tcphdr *tcp_header;
-   
+
    
 
  
@@ -103,13 +97,13 @@ unsigned int hook_func_in(unsigned int hooknum, struct sk_buff *skb,
        
        cbWrite(bufferPointer,&e);
 	 
-       //printk(KERN_INFO "IN packet info: src ip: %u, src port: %u; dest ip: %u, dest port: %u\n", e.src_ip, e.src_port, e.dest_ip, e.dest_port);
+      printk(KERN_INFO "end in provatcp nell'if: %u", cb.end);
       //}
  
    }
 				
    
-    
+   printk(KERN_INFO "end in provatcp: %u", cb.end);
    
    return 0;
 
