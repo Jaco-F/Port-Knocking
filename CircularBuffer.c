@@ -28,6 +28,7 @@ void cbInit(CircularBuffer *cb, int size) {
     PortSequence[6]=86;
     PortSequence[7]=87;
 }
+
 void delete(int posizione,CircularBuffer *cb);
 
 void cbFree(CircularBuffer *cb) {
