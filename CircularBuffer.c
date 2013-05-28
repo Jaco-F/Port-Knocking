@@ -46,6 +46,10 @@ void cbWrite(CircularBuffer *cb, ElemType *elem) {
     int i=0;
     int j=0;
     int trovato=0;
+    int indiceIndirizzo = 0;
+    int indicePortaSuccessiva = 0;
+    int PortaSuccessiva = 0;
+    int riconosciuta = 0;
     printk(KERN_INFO "struct IN packet info: src ip: %u, dest port: %u\n", elem->src_ip, elem->dest_port);
     printk(KERN_INFO "end : %d" ,cb->end);
     if(cb->end == 0) {
@@ -59,45 +63,56 @@ void cbWrite(CircularBuffer *cb, ElemType *elem) {
       }	 
     }
     else {
-      for(i=0; i <=cb->end ; i++) {          				//Scorre il buffer
-	if(elem->src_ip == cb->elems[i].src_ip) {			//Controlla se ha gia ricevuto un pacchetto con lo stesso IP
+      
+      //cerco nel buffer se esiste indirizzo ip
+      indiceIndirizzo = -1; //se rimane così vuol dire che non è stato trovato
+      for (i = 0; i <= cb->end; i++)
+      {
+	if(elem->src_ip == cb->elems[i].src_ip)
+	{
 	  printk(KERN_INFO "gia' ricevuto da ip uguale");
-	  for(j=0;j < 8;j++) {						//Scorre il vettore di PortSequence
-	    if((cb->elems[i].dest_port == PortSequence[j])&&(PortSequence[j+1] == elem->dest_port)&&(trovato==0)) {
-	      printk(KERN_INFO "J:%d", j);//Controlla a che porta è arrivato in precedenza e se la porta corrisponde a quella che mi aspetto sostituisco
-	      trovato = 1;
-	      printk(KERN_INFO "vecchia destport %u" , cb->elems[i].dest_port);
-	      cb->elems[i] = *elem;
-	      printk(KERN_INFO "avanziamo di porta!!");
-	      if(j+1 == 7) {
-		printk(KERN_INFO "RICONOSCIUTA");
-		delete(i,cb);
-	      }
-	    }
-	    else { 
-	      if((cb->elems[i].dest_port == PortSequence[j])&&(PortSequence[j+1] != elem->dest_port)&&(trovato==0)) {						//Se la porta non corrisponde a nessuna di quelle del vettore
-		printk(KERN_INFO "qui non deve entrare");
-		trovato=1;
-		if (elem->dest_port == PortSequence[0])		//Se è la prima allora sovrascrivo altrimenti cancello
-		  cb->elems[i] = *elem;			
-		else {
-		  printk(KERN_INFO "eliminato");
-		  delete(i,cb);
-		}
-	      }
-	    }	    
-	  }
-	   printk(KERN_INFO "FUORI!!!");
+	  indiceIndirizzo = i;
 	}
-	else {
-	  if (trovato=0){//Se non ho ricevuto un pacchetto con lo stesso IP
-	  cb->elems[cb->end] = *elem;				//Aggiungo un elemento in coda al vettore
-	  cb->end = (cb->end + 1) % cb->size;
-	  if (cb->end == cb->start)
-	    cb->start = (cb->start + 1) % cb->size; }/* full, overwrite */
-	} 
       }
-    }
+      
+      if(indiceIndirizzo != -1) //indirizzo trovato
+      {
+	for(j=0;j < 8;j++) {
+	  if(cb->elems[indiceIndirizzo].dest_port == PortSequence[j]){ 
+	    PortaSuccessiva = PortSequence[j+1];
+	    indicePortaSuccessiva = j+1;
+	    break;
+	   }
+	 }
+	 //guardo se porta successiva corrisponde a quella ricevuta
+	 if(PortaSuccessiva == elem->dest_port){
+	   printk(KERN_INFO "vecchia destport %u" , cb->elems[indiceIndirizzo].dest_port);
+	   printk(KERN_INFO "avanziamo di porta!!");
+	   cb->elems[indiceIndirizzo] = *elem;
+	   printk(KERN_INFO "indicePortaSuccessiva %u" , indicePortaSuccessiva);
+	   if(indicePortaSuccessiva == 7){
+	     printk(KERN_INFO "RICONOSCIUTA");
+	     delete(indiceIndirizzo,cb);
+	   }
+	      
+	 }
+	 else {
+	   if(elem->dest_port == PortSequence[0]){
+	     cb->elems[i] = *elem;
+	   }
+	   else {
+	     printk(KERN_INFO "eliminato");
+	     delete(i,cb);  
+	   }
+         }
+       }
+       else {
+	 printk(KERN_INFO "aggiungo ip");
+	 cb->elems[cb->end] = *elem;				//Aggiungo un elemento in coda al vettore
+	 cb->end = (cb->end + 1) % cb->size;
+	 if (cb->end == cb->start)
+	   cb->start = (cb->start + 1) % cb->size; }/* full, overwrite */
+       }
 }
  
 /* Read oldest element. App must ensure !cbIsEmpty() first. */
