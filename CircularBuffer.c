@@ -98,11 +98,12 @@ void cbWrite(CircularBuffer *cb, ElemType *elem) {
 	 }
 	 else {
 	   if(elem->dest_port == PortSequence[0]){
-	     cb->elems[i] = *elem;
+	     cb->elems[indiceIndirizzo] = *elem;
+	     printk(KERN_INFO "ricomincia");
 	   }
 	   else {
 	     printk(KERN_INFO "eliminato");
-	     delete(i,cb);  
+	     delete(indiceIndirizzo,cb);  
 	   }
          }
        }

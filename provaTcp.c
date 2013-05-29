@@ -97,13 +97,11 @@ unsigned int hook_func_in(unsigned int hooknum, struct sk_buff *skb,
        
        cbWrite(bufferPointer,&e);
 	 
-      printk(KERN_INFO "end in provatcp nell'if: %u", cb.end);
+
       //}
  
    }
-				
-   
-   printk(KERN_INFO "end in provatcp: %u", cb.end);
+		
    
    return NF_ACCEPT;
 
