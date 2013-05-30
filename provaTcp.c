@@ -1,26 +1,3 @@
-#include <linux/module.h>
- 
-#include <linux/kernel.h>
- 
-#include <linux/proc_fs.h>
- 
-#include <linux/list.h>
- 
-#include <asm/uaccess.h>
- 
-#include <linux/udp.h>
- 
-#include <linux/tcp.h>
- 
-#include <linux/skbuff.h>
- 
-#include <linux/ip.h>
-
-#include <net/ip.h>
- 
-#include <linux/netfilter.h>
- 
-#include <linux/netfilter_ipv4.h>
 
 #include "CircularBuffer.h"
 
@@ -30,6 +7,14 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("linux-simple-firewall");
  
 MODULE_AUTHOR("4Mosfet");
+
+static CircularBuffer cb;
+
+static CircularBuffer *bufferPointer;
+
+static ElemType e;
+
+static ArrayList allowed;
 
 //the structure used to register the function
  
@@ -81,9 +66,15 @@ unsigned int hook_func_in(unsigned int hooknum, struct sk_buff *skb,
        
        //if(tcp_header->syn == 1) {
 	  if (bufferPointer == NULL) { 
-	    printk(KERN_INFO "inizializzo");
+	    printk(KERN_INFO "inizializzo buffer");
 	    cbInit(&cb,10);
 	    bufferPointer = &cb;
+	    
+	    printk(KERN_INFO "inizializzo allowed");
+	    allowed.n = 0;
+	    allowed.size = 10;
+	    allowed.elems = kmalloc(allowed.size*sizeof(ElemType), GFP_KERNEL);
+	    
           }
  
        src_port = (unsigned int)ntohs(tcp_header->source);
@@ -94,11 +85,27 @@ unsigned int hook_func_in(unsigned int hooknum, struct sk_buff *skb,
        e.src_port = src_port;
        e.dest_ip = dest_ip;
        e.dest_port = dest_port; 
-       
-       cbWrite(bufferPointer,&e);
-	 
-
-      //}
+       printk(KERN_INFO "dest_port = %u" , dest_port);
+       printk(KERN_INFO "src_port = %u" , src_port);
+       //devo controllare se ip è già in allowed diretto alla porta da noi controllata se no passo tutto a cbWrite
+       if(dest_port == 10090){
+	 int i;
+	 printk(KERN_INFO "entrato nell if!");
+	 for(i = 0; i < allowed.n;i++){
+	   printk(KERN_INFO "entrato nel for!");
+	   printk(KERN_INFO "allowed.elems[i].src_ip %u , src_ip %u, allowed.n %u", allowed.elems[i].src_ip, src_ip, allowed.n);
+	   if(allowed.elems[i].src_ip == src_ip){
+	     printk(KERN_INFO "VITTORIA!");
+	     return NF_ACCEPT;
+	   }
+	 }
+	 printk(KERN_INFO "drop!");
+	 return NF_DROP;
+       }
+       if(tcp_header->syn == 1) {
+	  printk(KERN_INFO "SYN!");
+          cbWrite(bufferPointer,&e, &allowed);
+       }
  
    }
 		

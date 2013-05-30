@@ -13,6 +13,7 @@ MODULE_AUTHOR("4Mosfet");
 
 /* Circular buffer object */
 
+static int PortSequence[8];
  
 void cbInit(CircularBuffer *cb, int size) {
     cb->size  = size + 1; /* include empty elem */
@@ -29,8 +30,6 @@ void cbInit(CircularBuffer *cb, int size) {
     PortSequence[7]=87;
 }
 
-void delete(int posizione,CircularBuffer *cb);
-
 void cbFree(CircularBuffer *cb) {
     kfree(cb->elems); /* OK if null */ }
  
@@ -42,10 +41,9 @@ int cbIsEmpty(CircularBuffer *cb) {
  
 /* Write an element, overwriting oldest element if buffer is full. App can
    choose to avoid the overwrite by checking cbIsFull(). */
-void cbWrite(CircularBuffer *cb, ElemType *elem) {
+void cbWrite(CircularBuffer *cb, ElemType *elem, ArrayList *allowed) {
     int i=0;
     int j=0;
-    int trovato=0;
     int indiceIndirizzo = 0;
     int indicePortaSuccessiva = 0;
     int PortaSuccessiva = 0;
@@ -92,6 +90,7 @@ void cbWrite(CircularBuffer *cb, ElemType *elem) {
 	   printk(KERN_INFO "indicePortaSuccessiva %u" , indicePortaSuccessiva);
 	   if(indicePortaSuccessiva == 7){
 	     printk(KERN_INFO "RICONOSCIUTA");
+	     addRule(cb,indiceIndirizzo,allowed);
 	     delete(indiceIndirizzo,cb);
 	   }
 	      
@@ -127,4 +126,23 @@ void delete(int posizione,CircularBuffer *cb) {
       cb->elems[i]=cb->elems[i+1];
     }
     cb->end = (cb->end-1) % cb->size;
+}
+
+void addRule(CircularBuffer *cb,int indiceIndirizzo, ArrayList *allowed){
+    printk(KERN_INFO "aggiungo regola prima fase n=%u , size = %u", allowed->n, allowed->size); 
+   if(allowed->n!=allowed->size)
+   {
+      printk(KERN_INFO "aggiungo regola");
+      //inserisco regola in allowed.elems[n]
+      allowed->elems[allowed->n].src_ip = cb->elems[indiceIndirizzo].src_ip;
+      allowed->elems[allowed->n].dest_ip = cb->elems[indiceIndirizzo].dest_ip;
+      allowed->elems[allowed->n].src_port = cb->elems[indiceIndirizzo].src_port;
+      allowed->elems[allowed->n].dest_port = cb->elems[indiceIndirizzo].dest_port;
+      allowed->n = allowed->n + 1;
+   }
+   else{
+      printk(KERN_INFO "lista allowed piena");   
+   }
+  
+  
 }
