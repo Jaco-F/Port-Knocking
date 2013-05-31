@@ -3,141 +3,125 @@
 #include "CircularBuffer.h"
 
 MODULE_LICENSE("GPL");
- 
 MODULE_DESCRIPTION("circular-buffer");
- 
 MODULE_AUTHOR("4Mosfet");
+
+// port sequence
+static int port_sequence[8];
  
-/* Opaque buffer element type.  This would be defined by the application. */
-
-
-/* Circular buffer object */
-
-static int PortSequence[8];
- 
-void cbInit(CircularBuffer *cb, int size) {
-    cb->size  = size + 1; /* include empty elem */
-    cb->start = 0;
-    cb->end   = 0;
-    cb->elems = kmalloc(size*sizeof(ElemType), GFP_KERNEL);
-    PortSequence[0]=80;
-    PortSequence[1]=81;
-    PortSequence[2]=82;
-    PortSequence[3]=83;
-    PortSequence[4]=84;
-    PortSequence[5]=85;
-    PortSequence[6]=86;
-    PortSequence[7]=87;
+void cb_init(CircularBuffer *cb, int size) {
+   // init the buffer
+   cb->size  = size + 1;
+   cb->start = 0;
+   cb->end   = 0;
+   cb->elems = kmalloc(size*sizeof(ElemType), GFP_KERNEL);
+   
+   // init the port sequence
+   port_sequence[0]=80;
+   port_sequence[1]=81;
+   port_sequence[2]=82;
+   port_sequence[3]=83;
+   port_sequence[4]=84;
+   port_sequence[5]=85;
+   port_sequence[6]=86;
+   port_sequence[7]=87;
 }
 
 void cbFree(CircularBuffer *cb) {
-    kfree(cb->elems); /* OK if null */ }
+   kfree(cb->elems);  
+}
  
 int cbIsFull(CircularBuffer *cb) {
-    return (cb->end + 1) % cb->size == cb->start; }
+   return (cb->end + 1) % cb->size == cb->start;
+}
  
 int cbIsEmpty(CircularBuffer *cb) {
-    return cb->end == cb->start; }
+   return cb->end == cb->start; 
+  
+}
  
-/* Write an element, overwriting oldest element if buffer is full. App can
-   choose to avoid the overwrite by checking cbIsFull(). */
+// Write an element, overwriting oldest element if buffer is full.
 void cbWrite(CircularBuffer *cb, ElemType *elem, ArrayList *allowed) {
-    int i=0;
-    int j=0;
-    int indiceIndirizzo = 0;
-    int indicePortaSuccessiva = 0;
-    int PortaSuccessiva = 0;
-    int riconosciuta = 0;
-    printk(KERN_INFO "struct IN packet info: src ip: %u, dest port: %u\n", elem->src_ip, elem->dest_port);
-    printk(KERN_INFO "end : %d" ,cb->end);
-    if(cb->end == 0) {
-      printk(KERN_INFO "primo porta : %u , seq : %u\n", elem->dest_port,PortSequence[0]);
-      if (elem->dest_port == PortSequence[0])	{		//Se è la prima allora sovrascrivo altrimenti cancello
-	printk(KERN_INFO "primo inserito");
-	cb->elems[cb->end] = *elem;				//Aggiungo un elemento in coda al vettore
-	cb->end = (cb->end + 1) % cb->size;
-	if (cb->end == cb->start)
-	  cb->start = (cb->start + 1) % cb->size;
-      }	 
-    }
-    else {
-      
-      //cerco nel buffer se esiste indirizzo ip
-      indiceIndirizzo = -1; //se rimane così vuol dire che non è stato trovato
-      for (i = 0; i <= cb->end; i++)
-      {
-	if(elem->src_ip == cb->elems[i].src_ip)
-	{
-	  printk(KERN_INFO "gia' ricevuto da ip uguale");
-	  indiceIndirizzo = i;
-	}
+   int i=0;
+   int j=0;
+   int address_index = 0;
+   int next_port_index = 0;
+   int next_port = 0;
+   
+   printk(KERN_INFO "struct IN packet info: src ip: %u, dest port: %u\n", elem->src_ip, elem->dest_port);
+   printk(KERN_INFO "end : %d" ,cb->end);
+   
+   // search src_ip in the circular buffer
+   address_index = -1;
+   for (i = 0; i < cb->end; i++){
+      if(elem->src_ip == cb->elems[i].src_ip){
+         printk(KERN_INFO "gia' ricevuto da ip uguale");
+         address_index = i;
       }
-      
-      if(indiceIndirizzo != -1) //indirizzo trovato
-      {
-	for(j=0;j < 8;j++) {
-	  if(cb->elems[indiceIndirizzo].dest_port == PortSequence[j]){ 
-	    PortaSuccessiva = PortSequence[j+1];
-	    indicePortaSuccessiva = j+1;
-	    break;
-	   }
-	 }
-	 //guardo se porta successiva corrisponde a quella ricevuta
-	 if(PortaSuccessiva == elem->dest_port){
-	   printk(KERN_INFO "vecchia destport %u" , cb->elems[indiceIndirizzo].dest_port);
-	   printk(KERN_INFO "avanziamo di porta!!");
-	   cb->elems[indiceIndirizzo] = *elem;
-	   printk(KERN_INFO "indicePortaSuccessiva %u" , indicePortaSuccessiva);
-	   if(indicePortaSuccessiva == 7){
-	     printk(KERN_INFO "RICONOSCIUTA");
-	     addRule(cb,indiceIndirizzo,allowed);
-	     delete(indiceIndirizzo,cb);
-	   }
-	      
-	 }
-	 else {
-	   if(elem->dest_port == PortSequence[0]){
-	     cb->elems[indiceIndirizzo] = *elem;
-	     printk(KERN_INFO "ricomincia");
-	   }
-	   else {
-	     printk(KERN_INFO "eliminato");
-	     delete(indiceIndirizzo,cb);  
-	   }
+   }
+    
+   // if src_ip is in the circular buffer 
+   if(address_index != -1){
+      for(j=0;j < 8;j++) {
+         if(cb->elems[address_index].dest_port == port_sequence[j]){ 
+            next_port = port_sequence[j+1];
+            next_port_index = j+1;
+            break;
+         }
+      }
+      // control if the port_sequence is right
+      if(next_port == elem->dest_port){
+         printk(KERN_INFO "vecchia destport %u" , cb->elems[address_index].dest_port);
+         printk(KERN_INFO "avanziamo di porta!!");
+         cb->elems[address_index] = *elem;
+         printk(KERN_INFO "next_port_index %u" , next_port_index);
+         if(next_port_index == 7){
+            printk(KERN_INFO "RICONOSCIUTA");
+            addRule(cb,address_index,allowed); 
+            delete(address_index,cb);
+         }      
+      }
+      else {
+         if(elem->dest_port == port_sequence[0]){
+            cb->elems[address_index] = *elem;
+            printk(KERN_INFO "ricomincia");
+         }
+         else {
+            printk(KERN_INFO "eliminato");
+            delete(address_index,cb);    
          }
        }
-       else {
-	 printk(KERN_INFO "aggiungo ip");
-	 cb->elems[cb->end] = *elem;				//Aggiungo un elemento in coda al vettore
-	 cb->end = (cb->end + 1) % cb->size;
-	 if (cb->end == cb->start)
-	   cb->start = (cb->start + 1) % cb->size; }/* full, overwrite */
-       }
-}
- 
-/* Read oldest element. App must ensure !cbIsEmpty() first. */
-void cbRead(CircularBuffer *cb, ElemType *elem) {
-    *elem = cb->elems[cb->start];
-    cb->start = (cb->start + 1) % cb->size;
-}
-void delete(int posizione,CircularBuffer *cb) {
-    int i;
-    for (i = posizione; i<=cb->end; i++) {
-      cb->elems[i]=cb->elems[i+1];
-    }
-    cb->end = (cb->end-1) % cb->size;
+   }
+   else {
+      if(elem->dest_port == port_sequence[0]){
+         printk(KERN_INFO "primo porta : %u , seq : %u\n", elem->dest_port,port_sequence[0]);
+         printk(KERN_INFO "aggiungo ip");
+         //add elments
+         cb->elems[cb->end] = *elem;
+         cb->end = (cb->end + 1) % cb->size;
+         if (cb->end == cb->start)
+            cb->start = (cb->start + 1) % cb->size; /* full, overwrite */
+      }
+   }    
 }
 
-void addRule(CircularBuffer *cb,int indiceIndirizzo, ArrayList *allowed){
-    printk(KERN_INFO "aggiungo regola prima fase n=%u , size = %u", allowed->n, allowed->size); 
-   if(allowed->n!=allowed->size)
-   {
+void delete(int posizione,CircularBuffer *cb) {
+   int i;
+   for (i = posizione; i<=cb->end; i++) {
+      cb->elems[i]=cb->elems[i+1];
+   }
+   cb->end = (cb->end-1) % cb->size;
+}
+
+void addRule(CircularBuffer *cb,int address_index, ArrayList *allowed){
+   printk(KERN_INFO "aggiungo regola prima fase n=%u , size = %u", allowed->n, allowed->size); 
+   if(allowed->n!=allowed->size){
       printk(KERN_INFO "aggiungo regola");
       //inserisco regola in allowed.elems[n]
-      allowed->elems[allowed->n].src_ip = cb->elems[indiceIndirizzo].src_ip;
-      allowed->elems[allowed->n].dest_ip = cb->elems[indiceIndirizzo].dest_ip;
-      allowed->elems[allowed->n].src_port = cb->elems[indiceIndirizzo].src_port;
-      allowed->elems[allowed->n].dest_port = cb->elems[indiceIndirizzo].dest_port;
+      allowed->elems[allowed->n].src_ip = cb->elems[address_index].src_ip;
+      allowed->elems[allowed->n].dest_ip = cb->elems[address_index].dest_ip;
+      allowed->elems[allowed->n].src_port = cb->elems[address_index].src_port;
+      allowed->elems[allowed->n].dest_port = cb->elems[address_index].dest_port;
       allowed->n = allowed->n + 1;
    }
    else{
