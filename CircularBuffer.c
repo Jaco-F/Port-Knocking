@@ -8,8 +8,13 @@ MODULE_AUTHOR("4Mosfet");
 
 // port sequence
 static int port_sequence[8];
+
+static struct timer_list my_timer;
+static int index_timer;
+static ArrayList *allowed_locale;
  
 void cb_init(CircularBuffer *cb, int size) {
+   index_timer = 0;
    // init the buffer
    cb->size  = size + 1;
    cb->start = 0;
@@ -42,6 +47,7 @@ int cbIsEmpty(CircularBuffer *cb) {
  
 // Write an element, overwriting oldest element if buffer is full.
 void cbWrite(CircularBuffer *cb, ElemType *elem, ArrayList *allowed) {
+   allowed_locale = allowed;
    int i=0;
    int j=0;
    int address_index = 0;
@@ -79,6 +85,10 @@ void cbWrite(CircularBuffer *cb, ElemType *elem, ArrayList *allowed) {
             printk(KERN_INFO "RICONOSCIUTA");
             addRule(cb,address_index,allowed); 
             delete(address_index,cb);
+	    /* setup your timer to call my_timer_callback */
+            setup_timer(&my_timer, my_timer_callback, elem->src_ip);
+            /* setup timer interval to 200 msecs */
+            mod_timer(&my_timer, jiffies + msecs_to_jiffies(20000));
          }      
       }
       else {
@@ -129,4 +139,19 @@ void addRule(CircularBuffer *cb,int address_index, ArrayList *allowed){
    }
   
   
+}
+
+void delete_rule(ArrayList *allowed){
+   printk(KERN_INFO "Rimuovo regola!");
+   int i;
+   for (i = 0; i<allowed->n; i++) {
+      allowed->elems[i]=allowed->elems[i+1];
+   }
+   allowed->n = allowed->n - 1;
+}
+
+void my_timer_callback( unsigned long data )
+{
+   printk(KERN_INFO "timer scaduto");
+   delete_rule(allowed_locale);
 }

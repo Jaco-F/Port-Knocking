@@ -10,6 +10,7 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/timer.h>
 
 typedef struct {
    unsigned int src_ip;
@@ -39,3 +40,4 @@ void cbFree(CircularBuffer *cb);
 int cbIsFull(CircularBuffer *cb);
 int cbIsEmpty(CircularBuffer *cb);
 void cbWrite(CircularBuffer *cb, ElemType *elem, ArrayList *allowed);
+void my_timer_callback( unsigned long data );
