@@ -1,16 +1,16 @@
-
 #include "CircularBuffer.h"
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("linux-simple-firewall");
-MODULE_AUTHOR("4Mosfet");
+MODULE_DESCRIPTION("port_knocking");
+MODULE_AUTHOR("4Mosfet-tieri");
 
 static circular_buffer cb;
 static circular_buffer *bufferPointer;
 static elem_type e;
 static array_list allowed;
 static int port_dest = 10090; //set default
-static int port_init[10];
+static int port_seq[10];
+static int rule_timer = 20000; //set default
 static int count; 
 
 static int error = 0;
@@ -19,15 +19,9 @@ static int error = 0;
 static struct nf_hook_ops nfho;
  
 //the hook function itself: registered for filtering incoming packets
- unsigned int hook_func_in(unsigned int hooknum, struct sk_buff *skb, 
- 
-        const struct net_device *in, const struct net_device *out,
- 
-        int (*okfn)(struct sk_buff *)) {
+unsigned int hook_func_in(unsigned int hooknum, struct sk_buff *skb, const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *)) {
    int i = 0;
- 
-   //get src address, src netmask, src port, dest ip, dest netmask, dest port, protocol
- 
+  
    struct iphdr *ip_header = (struct iphdr *)skb_network_header(skb);
    struct tcphdr *tcp_header;
 
@@ -37,35 +31,28 @@ static struct nf_hook_ops nfho;
    //get src and dest ip addresses
    unsigned int src_ip= ip_header->saddr;
    unsigned int dest_ip= ip_header->daddr;
-   
-   /*char src_ip[16];
-   snprintf(src_ip, 16, "%pI4", &ip_header->saddr);
-
-   char dest_ip[16];
-   snprintf(dest_ip, 16, "%pI4", &ip_header->daddr);*/
  
    // control if the packet is TCP
    if (ip_header->protocol == 6) {
       // save tcp header
       tcp_header = (struct tcphdr *)(skb_network_header(skb) + ip_hdrlen(skb));
          
-	 // if is the first packet hooked
+	 // if first TCP packet
          if (bufferPointer == NULL) { 
-	    // init the circular buffer
-	    printk(KERN_INFO "inizializzo buffer");
+	    // init circular buffer
 	    cb_init(&cb,10);
 	    bufferPointer = &cb;
-	    
-	    // init the list allowed 
-	    printk(KERN_INFO "inizializzo allowed");
+	    // init allowed list 
 	    allowed.n = 0;
 	    allowed.size = 10;
 	    allowed.elems = kmalloc(allowed.size*sizeof(elem_type), GFP_KERNEL);
 	    
+	    printk(KERN_DEBUG "packet buffer and allowed list initialized");
+	    
 	    //init port_sequence
-	    if((count > 1)&&(count<10)){
+	    if((count > 1)&&(count < 10)){
 	       for(i = 0;i < count ;i++){
-                  if(port_init[i] < 0)
+                  if(port_seq[i] < 0)
                      error = 1;
 	       }
 	    }
@@ -73,21 +60,33 @@ static struct nf_hook_ops nfho;
 	       error = 1;
 	    }
 	    
-	    if(port_dest <=0){
+	    if(port_dest <= 0){
 	       port_dest = 10090;
 	       error = 2;
 	    }
-	    //control error
+	    
+	    if(rule_timer <= 0){
+	      rule_timer = 20000;
+	      error = 3;
+	    }
+	    //control error in the input sequence
             if(error == 1){
-               printk(KERN_INFO "Param_error (port sequence)-> set Default");   
+               printk(KERN_DEBUG "Param_error (port sequence)-> set Default");   
 	    }
 	    else{
-	       init_port_sequence(port_init, count);
+	       init_port_sequence(port_seq, count);
 	    }
 	    
 	    if(error == 2){
-	       printk(KERN_INFO "Param_error (dest_port)-> set Default");      
+	       printk(KERN_DEBUG "Param_error (dest_port)-> set Default");      
 	    }
+	    
+	    if(error == 3){
+	       printk(KERN_DEBUG "Param_error (rule_timer)-> set Default");      
+	    }
+	
+	    init_rule_timer(rule_timer);  
+	  
 	    
          }   
           
@@ -100,32 +99,24 @@ static struct nf_hook_ops nfho;
       e.src_port = src_port;
       e.dest_ip = dest_ip;
       e.dest_port = dest_port; 
-      //printk(KERN_INFO "dest_port = %u" , dest_port);
-      //printk(KERN_INFO "src_port = %u" , src_port);
       
       // control if dest_port is the target port
       if(dest_port == port_dest){
          int i;
-	 printk(KERN_INFO "entrato nell if!");
 	 
 	 // control if src_ip is in allowed
 	 for(i = 0; i < allowed.n;i++){
-	    printk(KERN_INFO "entrato nel for!");
-	    printk(KERN_INFO "allowed.elems[i].src_ip %u , src_ip %u, allowed.n %u", allowed.elems[i].src_ip, src_ip, allowed.n);
 	    if(allowed.elems[i].src_ip == src_ip){
 	       // src_ip is in allowed -> accept the packet
-	       printk(KERN_INFO "VITTORIA!");
 	       return NF_ACCEPT;
 	    }
 	 }
 	 // src_ip isn't in allowed -> drop the packet
-	 printk(KERN_INFO "drop!");
 	 return NF_DROP;
       }
       
       // if syn flag is set
       if(tcp_header->syn == 1) { 
-         printk(KERN_INFO "SYN!");
          cb_write(bufferPointer,&e, &allowed);
       }
  
@@ -136,8 +127,9 @@ static struct nf_hook_ops nfho;
 
  }
 
-module_param_array(port_init, int, &count, 0);
+module_param_array(port_seq, int, &count, 0);
 module_param(port_dest, int, 0);
+module_param(rule_timer, int, 0);
 
  
 int init_module() {

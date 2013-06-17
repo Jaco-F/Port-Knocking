@@ -1,16 +1,6 @@
 #include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/proc_fs.h>
-#include <linux/list.h>
-#include <asm/uaccess.h>
-#include <linux/tcp.h>
-#include <linux/skbuff.h>
-#include <linux/ip.h>
 #include <net/ip.h>
-#include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
-#include <linux/netfilter_ipv4/ip_tables.h>
-#include <linux/timer.h>
 
 typedef struct {
    unsigned int src_ip;
@@ -40,3 +30,4 @@ void cb_free(circular_buffer *cb);
 void cb_write(circular_buffer *cb, elem_type *elem, array_list *allowed);
 void my_timer_callback( unsigned long data );
 void init_port_sequence(int *ports, int count);
+void init_rule_timer(int time);
