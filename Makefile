@@ -1,7 +1,7 @@
 .PHONY:
 	all clean
-obj-m = test.o
-test-objs += CircularBuffer.o provaTcp.o
+obj-m = port.o
+port-objs += CircularBuffer.o tcphook.o
 KVERSION = $(shell uname -r)
 all: 
 	make -C /lib/modules/$(KVERSION)/build M=$(PWD) 
