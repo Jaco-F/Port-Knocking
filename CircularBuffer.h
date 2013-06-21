@@ -1,6 +1,7 @@
 #include <linux/module.h>
 #include <net/ip.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/timer.h>
 
 typedef struct {
    unsigned int src_ip;
@@ -11,7 +12,8 @@ typedef struct {
 
 typedef struct {
    int size;         // maximum number of elements
-   int n;            // index at which to write new element        
+   int n;            // index at which to write new element 
+   int start;
    elem_type *elems;  // vector of elements
 } array_list;
 		

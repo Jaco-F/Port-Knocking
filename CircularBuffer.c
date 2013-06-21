@@ -8,10 +8,11 @@ MODULE_AUTHOR("4Mosfet-tieri");
 static int port_sequence[10];
 static int num_ports;
 
-static struct timer_list my_timer;
+static struct timer_list my_timer[10];
 static int index_timer;
 static array_list *local_allowed;
 static int local_timer;
+static int k = 0;
  
 void cb_init(circular_buffer *cb, int size) {
    int i = 0; 
@@ -67,9 +68,10 @@ void cb_write(circular_buffer *cb, elem_type *elem, array_list *allowed) {
             add_rule(cb,address_index,allowed); 
             delete(address_index,cb);
 	    // setup timer to call my_timer_callback once expired
-            setup_timer(&my_timer, my_timer_callback, elem->src_ip);
+            setup_timer(&my_timer[k], my_timer_callback, elem->src_ip);
             // setup timer interval to 20 secs
-            mod_timer(&my_timer, jiffies + msecs_to_jiffies(local_timer));
+            mod_timer(&my_timer[k], jiffies + msecs_to_jiffies(local_timer));
+	    k = (k+1)%10;
          }      
       }
       else {
@@ -95,6 +97,7 @@ void cb_write(circular_buffer *cb, elem_type *elem, array_list *allowed) {
 }
 
 void delete(int posizione,circular_buffer *cb) {
+
    int i = 0;
    for (i = posizione; i<=cb->end; i++) {
       cb->elems[i]=cb->elems[i+1];
@@ -109,8 +112,14 @@ void add_rule(circular_buffer *cb,int address_index, array_list *allowed){
       allowed->elems[allowed->n].dest_ip = cb->elems[address_index].dest_ip;
       allowed->elems[allowed->n].src_port = cb->elems[address_index].src_port;
       allowed->elems[allowed->n].dest_port = cb->elems[address_index].dest_port;
-      allowed->n = allowed->n + 1;
+      allowed->n = (allowed->n + 1) % allowed->size;
+      if (allowed->n == allowed->start){
+         allowed->start = (allowed->start + 1) % allowed->size;
+	
+      }
+
       printk(KERN_DEBUG "rule added");
+      
    }
    else{
       printk(KERN_DEBUG "allowed list full");   
@@ -120,7 +129,7 @@ void add_rule(circular_buffer *cb,int address_index, array_list *allowed){
 }
 
 //delete a rule from allowed list
-void delete_rule(array_list *allowed){
+void delete_rule2(array_list *allowed){
    int i = 0;
    for (i = 0; i<allowed->n; i++) {
       allowed->elems[i]=allowed->elems[i+1];
@@ -128,10 +137,16 @@ void delete_rule(array_list *allowed){
    allowed->n = allowed->n - 1;
 }
 
+void delete_rule(array_list *allowed){
+   allowed->start = (allowed->start + 1) % allowed->size;
+   printk(KERN_INFO "allowed->start = %u", allowed->start);
+   printk(KERN_INFO "allowed->n = %u", allowed->n);
+}
+
 // function called when the timer expires
 void my_timer_callback( unsigned long data )
 {
-   printk(KERN_DEBUG "timer expired");
+   printk(KERN_INFO "timer expired");
    delete_rule(local_allowed);
 }
 

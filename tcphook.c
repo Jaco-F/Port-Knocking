@@ -45,6 +45,7 @@ unsigned int hook_func_in(unsigned int hooknum, struct sk_buff *skb, const struc
 	    // init allowed list 
 	    allowed.n = 0;
 	    allowed.size = 10;
+	    allowed.start = 0;
 	    allowed.elems = kmalloc(allowed.size*sizeof(elem_type), GFP_KERNEL);
 	    
 	    printk(KERN_DEBUG "packet buffer and allowed list initialized");
@@ -105,11 +106,13 @@ unsigned int hook_func_in(unsigned int hooknum, struct sk_buff *skb, const struc
          int i;
 	 
 	 // control if src_ip is in allowed
-	 for(i = 0; i < allowed.n;i++){
+	 i = allowed.start;
+	 while(i != allowed.n){
 	    if(allowed.elems[i].src_ip == src_ip){
 	       // src_ip is in allowed -> accept the packet
 	       return NF_ACCEPT;
 	    }
+	    i = (i+1)%allowed.size;
 	 }
 	 // src_ip isn't in allowed -> drop the packet
 	 return NF_DROP;
